@@ -165,7 +165,7 @@ struct mtr_memo_slot_t {
   ulint type;
 };
 
-/** Mini-transaction handle and buffer */
+/** Mini-transaction handle and buffer  */
 struct mtr_t {
   /** State variables of the mtr */
   struct Impl {

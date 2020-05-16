@@ -1734,22 +1734,27 @@ void row_prebuild_sel_graph(row_prebuilt_t *prebuilt) {
 
 /** Creates an query graph node of 'update' type to be used in the MySQL
  interface.
- @return own: update node */
+ @return own: update node, the node contains a lot of info regaRDING FILED TO UPDATE ETC,
+ the info are from heap */
 upd_node_t *row_create_update_node_for_mysql(
     dict_table_t *table, /*!< in: table to update */
-    mem_heap_t *heap)    /*!< in: mem heap from which allocated */
+    mem_heap_t *heap)    /*!< in: mem heap from which allocated, this is just
+     a block of memory */
 {
   upd_node_t *node;
 
   DBUG_TRACE;
 
-  node = upd_node_create(heap);
+  node = upd_node_create(heap); // actually allocate memory to heap, set fields
+                                // and set upd_node_t data structure in the
+                                // heap memory
 
   node->in_mysql_interface = TRUE;
   node->is_delete = FALSE;
   node->searched_update = FALSE;
   node->select = nullptr;
-  node->pcur = btr_pcur_create_for_mysql();
+  node->pcur = btr_pcur_create_for_mysql();  /*!< persistent cursor used in selects
+                          and updates, this is a btree cursor for access */
 
   DBUG_PRINT("info", ("node: %p, pcur: %p", node, node->pcur));
 
@@ -1757,7 +1762,13 @@ upd_node_t *row_create_update_node_for_mysql(
 
   node->update =
       upd_create(table->get_n_cols() + dict_table_get_n_v_cols(table), heap);
-
+      // upd_t *update;       /*!< update vector for the row */
+      /** Creates an update vector object.
+       @return own: update vector object */
+      /*upd_t *upd_create(ulint n,          // in: number of fields , this is used
+                                          to do some interesting case in heap memory to get each field, the memory is allocated within
+                                           the specfic format that is needed, it is kind of dangerous though, maybe for performance reason
+            mem_heap_t *heap) /*!< in: heap from which memory allocated */
   node->update->table = table;
 
   node->update_n_fields = table->get_n_cols();
@@ -1800,6 +1811,21 @@ upd_t *row_get_prebuilt_update_vector(
     prebuilt->upd_graph = static_cast<que_fork_t *>(que_node_get_parent(
         pars_complete_graph_for_exec(static_cast<upd_node_t *>(node),
                                      prebuilt->trx, prebuilt->heap, prebuilt)));
+
+                                     /** Completes a query graph by adding query thread and fork nodes
+                                     above it and prepares the graph for running. The fork created is of
+                                     type QUE_FORK_MYSQL_INTERFACE.
+                                     @param[in]	node		root node for an incomplete query
+                                                                     graph, or NULL for dummy graph
+                                     @param[in]	trx		transaction handle
+                                     @param[in]	heap		memory heap which allocated
+                                     @param[in]	prebuilt	row prebuilt structure
+                                     @return query thread node to run */
+                                     // pars_complete_graph_for_exec()
+
+                                     /** Gets the parent node of a query graph node.
+                                      @return parent node or NULL */
+                                      //que_node_get_parent() this is in que0que.ic file
 
     prebuilt->upd_graph->state = QUE_FORK_ACTIVE;
   }
@@ -2437,6 +2463,7 @@ error:
 @return error code or DB_SUCCESS */
 dberr_t row_update_for_mysql(const byte *mysql_rec, row_prebuilt_t *prebuilt) {
   if (prebuilt->table->is_intrinsic()) {
+    //  update the role
     return (row_del_upd_for_mysql_using_cursor(mysql_rec, prebuilt));
   } else {
     ut_a(prebuilt->template_type == ROW_MYSQL_WHOLE_ROW);

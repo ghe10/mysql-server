@@ -503,7 +503,7 @@ void row_upd_rec_in_place(
   n_fields = upd_get_n_fields(update);
 
   for (i = 0; i < n_fields; i++) {
-    upd_field = upd_get_nth_field(update, i);
+    upd_field = upd_get_nth_field(update, i); // get i th field of update vector
 
     /* No need to update virtual columns for non-virtual index */
     if (upd_fld_is_virtual_col(upd_field) && !dict_index_has_virtual(index)) {
@@ -519,7 +519,23 @@ void row_upd_rec_in_place(
     row_upd_changes_field_size_or_external() */
     ut_ad(!rec_offs_nth_default(offsets, upd_field->field_no));
     rec_set_nth_field(rec, offsets, upd_field->field_no,
-                      dfield_get_data(new_val), dfield_get_len(new_val));
+                      dfield_get_data(new_val), dfield_get_len(new_val)); // set the i th field
+
+                      /**
+                        rec_set_nth_field() is defined in .ic file. Ic is an extended c language
+                        https://www.osadl.org/uploads/media/iC.pdf
+                       This is used to modify the value of an already existing field in a record.
+                       The previous value must have exactly the same size as the new value. If len
+                       is UNIV_SQL_NULL then the field is treated as an SQL null.
+                       For records in ROW_FORMAT=COMPACT (new-style records), len must not be
+                       UNIV_SQL_NULL unless the field already is SQL null.
+
+                       The core impl is : ut_memcpy(data2, data, len); seems only apply to buffer pool
+
+                       I think only when commit we would have the redo log flush to disk followed by pages
+                       in double write fashion
+
+                       */
   }
 
   if (page_zip) {

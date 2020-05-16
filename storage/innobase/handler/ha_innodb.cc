@@ -9193,6 +9193,8 @@ int ha_innobase::update_row(const uchar *old_row, uchar *new_row) {
   ut_a(m_prebuilt->trx == trx);
 
   if (high_level_read_only && !m_prebuilt->table->is_intrinsic()) {
+    // intrinisc: being an extremely important and basic characteristic of a person or thing.
+    // seems like we are trying to figure out if we are using a tmp table or not
     ib_senderrf(ha_thd(), IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
     return HA_ERR_TABLE_READONLY;
   } else if (!trx_is_started(trx)) {
@@ -9226,6 +9228,10 @@ int ha_innobase::update_row(const uchar *old_row, uchar *new_row) {
   if (m_prebuilt->upd_node) {
     uvect = m_prebuilt->upd_node->update;
   } else {
+    /** Gets pointer to a prebuilt update vector used in updates. If the update
+     graph has not yet been built in the prebuilt struct, then this function
+     first builds it.
+     @return prebuilt update vector */
     uvect = row_get_prebuilt_update_vector(m_prebuilt);
   }
 

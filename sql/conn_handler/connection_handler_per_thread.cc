@@ -230,7 +230,7 @@ static THD *init_new_thd(Channel_info *channel_info) {
 /**
   Thread handler for a connection
 
-  @param arg   Connection object (Channel_info)
+  @param arg   Connection object (handle_connection)
 
   This function (normally) does the following:
   - Initialize thread
