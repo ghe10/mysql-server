@@ -830,7 +830,7 @@ class Fil_shard {
   void update_space_name_map(fil_space_t *space, const char *new_name);
 
   /** Flush the redo log writes to disk, possibly cached by the OS. */
-  void flush_file_redo();
+  void flush_file_redo(); // seems only a delcare, needs to figure out impl
 
   /** Collect the tablespace IDs of unflushed tablespaces in space_ids.
   @param[in]	purpose		FIL_TYPE_TABLESPACE or FIL_TYPE_LOG,

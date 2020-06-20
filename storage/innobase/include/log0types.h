@@ -158,6 +158,19 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
       @see @ref subsect_redo_log_sn */
       atomic_sn_t sn;
 
+/*
+//CPU cache line size
+#ifdef __powerpc__
+#define INNOBASE_CACHE_LINE_SIZE 128
+#else
+#define INNOBASE_CACHE_LINE_SIZE 64
+#endif // __powerpc__
+
+alignas() is a cpp method that aligns the memory allocation to multiple of its input.
+
+If the align rule is weaked by the method, the align is ignored.
+https://en.cppreference.com/w/cpp/language/alignas
+*/
   /** Padding after the _sn to avoid false sharing issues for
   constants below (due to changes of sn). */
   alignas(INNOBASE_CACHE_LINE_SIZE)

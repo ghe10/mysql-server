@@ -2149,7 +2149,7 @@ static void log_flush_low(log_t &log) {
   bool do_flush = true;
 #endif
 
-  os_event_reset(log.flusher_event);
+  os_event_reset(log.flusher_event); // didn't quite get this, sounds like a reset waiting for interrupt etc behavior
 
   log.last_flush_start_time = Log_clock::now();
 
@@ -2163,6 +2163,11 @@ static void log_flush_low(log_t &log) {
     LOG_SYNC_POINT("log_flush_before_fsync");
 
     fil_flush_file_redo();
+
+    /** Flush to disk the writes in file spaces of the given type
+    possibly cached by the OS. 
+    void fil_flush_file_redo() { fil_system->flush_file_redo(); }
+    */
   }
 
   log.last_flush_end_time = Log_clock::now();
@@ -2232,8 +2237,17 @@ void log_flusher(log_t *log_ptr) {
       LOG_SYNC_POINT("log_flusher_before_should_flush");
 
       const lsn_t last_flush_lsn = log.flushed_to_disk_lsn.load();
+      /** Up to this lsn data has been flushed to disk (fsynced).
+      atomic_lsn_t flushed_to_disk_lsn;
+     in my opinion, this load() is a loading from main memory to avoid reading stale value from cpu cache
+      */
 
       ut_a(last_flush_lsn <= log.write_lsn.load());
+      /** Up to this lsn, data has been written to disk (fsync not required).
+      Protected by: writer_mutex (writes).
+      @see @ref subsect_redo_log_write_lsn
+      atomic_lsn_t write_lsn;
+     */
 
       if (last_flush_lsn < log.write_lsn.load()) {
         /* Flush and stop waiting. */

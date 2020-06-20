@@ -672,7 +672,7 @@ lock_loop:
     spin_count += i;
 
     if (i >= srv_n_spin_wait_rounds) {
-      os_thread_yield();
+      os_thread_yield(); // this yield is hanging the thread and give resource away
 
     } else {
       goto lock_loop;

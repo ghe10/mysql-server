@@ -486,10 +486,13 @@ bool log_sys_init(uint32_t n_files, uint64_t file_size, space_id_t space_id) {
   variable it will have the dtor called. However because we can
   exit without proper cleanup for redo log in some cases, we
   need to forbid dtor calls then. */
+  //https://dev.mysql.com/doc/dev/mysql-server/latest/classaligned__pointer.html
+  log_sys_object = UT_NEW_NOKEY(aligned_pointer<log_t>{}); // safe memory allocastion which returns null if fail
 
-  log_sys_object = UT_NEW_NOKEY(aligned_pointer<log_t>{});
-
-  log_sys_object->create();
+  /** Redo log system. Singleton used to populate global pointer.
+  aligned_pointer<log_t> *log_sys_object;
+  */
+  log_sys_object->create(); // allocate alligned memory
   log_sys = *log_sys_object;
 
   log_t &log = *log_sys;
@@ -536,7 +539,10 @@ bool log_sys_init(uint32_t n_files, uint64_t file_size, space_id_t space_id) {
 #endif
       SYNC_LOG_SN, 64);
 
-  /* Allocate buffers. */
+  /* Allocate buffers. mainly doing allocate memory*/
+  // srv_log_buffer_size is defined in srv0srv.cc and is an extern, not exactly sure how it is initialized
+  // update: I think it is INNODB_LOG_BUFFER_SIZE_DEFAULT, seems global vars are initiazlied in ha_innodb.cc
+  // log related default vals are defined in log0log.h
   log_allocate_buffer(log);
   log_allocate_write_ahead_buffer(log);
   log_allocate_checkpoint_buffer(log);
@@ -730,7 +736,7 @@ void log_start_background_threads(log_t &log) {
   log.should_stop_threads.store(false);
 
   srv_threads.m_log_checkpointer =
-      os_thread_create(log_checkpointer_thread_key, log_checkpointer, &log);
+      os_thread_create(log_checkpointer_thread_key, log_checkpointer, &log); // param1 is for performance schema
 
   srv_threads.m_log_closer =
       os_thread_create(log_closer_thread_key, log_closer, &log);
@@ -1030,7 +1036,16 @@ static void log_allocate_buffer(log_t &log) {
   ut_a(srv_log_buffer_size <= INNODB_LOG_BUFFER_SIZE_MAX);
   ut_a(srv_log_buffer_size >= 4 * UNIV_PAGE_SIZE);
 
-  log.buf.create(srv_log_buffer_size);
+  /** Pointer to the log buffer, aligned up to OS_FILE_LOG_BLOCK_SIZE.
+  The alignment is to ensure that buffer parts specified for file IO write
+  operations will be aligned to sector size, which is required e.g. on
+  Windows when doing unbuffered file access.
+  Protected by: sn_lock.
+  aligned_array_pointer<byte, OS_FILE_LOG_BLOCK_SIZE> buf;
+
+  /includes/log0types.h
+  */
+  log.buf.create(srv_log_buffer_size); // allocate memory to aligned_array_pointer, no special logic here
 }
 
 static void log_deallocate_buffer(log_t &log) { log.buf.destroy(); }
